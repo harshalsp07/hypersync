@@ -1,0 +1,68 @@
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: hypersync
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+      - ./infra/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      REDIS_URL: redis://redis:6379
+      PG_URL: postgresql://postgres:postgres@postgres:5432/hypersync
+      JWT_SECRET: dev-secret-change-in-production-1234
+      PORT: 3000
+      HOST: "0.0.0.0"
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./apps/server:/app
+      - /app/node_modules
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+    depends_on:
+      - server
+
+volumes:
+  redis-data:
+  pg-data:

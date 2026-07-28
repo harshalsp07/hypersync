@@ -1,0 +1,63 @@
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD:-hypersync_redis_2026}
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-hypersync_redis_2026}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - internal
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${PG_USER:-hypersync}
+      POSTGRES_PASSWORD: ${PG_PASSWORD:-hypersync_pg_2026}
+      POSTGRES_DB: ${PG_DB:-hypersync}
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+      - ./infra/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_USER:-hypersync}"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - internal
+
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      REDIS_URL: redis://:${REDIS_PASSWORD:-hypersync_redis_2026}@redis:6379
+      PG_URL: postgresql://${PG_USER:-hypersync}:${PG_PASSWORD:-hypersync_pg_2026}@postgres:5432/${PG_DB:-hypersync}
+      JWT_SECRET: ${JWT_SECRET:-change-this-in-production}
+      PORT: 3000
+      HOST: "0.0.0.0"
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+
+volumes:
+  redis-data:
+  pg-data:
+
+networks:
+  internal:
+    driver: bridge

@@ -9,7 +9,6 @@ RUN corepack enable && pnpm install --frozen-lockfile
 
 FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
 COPY . .
 RUN corepack enable && pnpm --filter @hypersync/shared build
 RUN corepack enable && pnpm --filter @hypersync/server build
@@ -24,7 +23,6 @@ COPY --from=build /app/packages/shared/package.json ./packages/shared/
 COPY --from=build /app/apps/server/dist ./apps/server/dist
 COPY --from=build /app/apps/server/package.json ./apps/server/
 COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/packages/shared/node_modules ./packages/shared/node_modules
 
 USER app
 EXPOSE 3000

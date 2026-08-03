@@ -14,8 +14,6 @@ turbo-debug.log
 .idea
 coverage
 .nyc_output
-apps/server/src
-apps/web/src
 infra/certs
 infra/nginx.conf
 infra/nginx.prod.conf

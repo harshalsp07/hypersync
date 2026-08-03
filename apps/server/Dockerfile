@@ -5,6 +5,7 @@ WORKDIR /app
 FROM base AS deps
 COPY package.json pnpm-lock.yaml ./
 COPY packages/shared/package.json ./packages/shared/
+COPY packages/config/package.json ./packages/config/
 RUN corepack enable && pnpm install --frozen-lockfile
 
 FROM base AS build

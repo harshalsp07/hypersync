@@ -1,23 +1,21 @@
-FROM node:22-alpine AS base
+FROM node:22-alpine AS build
 RUN apk add --no-cache python3 make g++
 WORKDIR /app
 
-FROM base AS deps
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/config/package.json ./packages/config/
 RUN corepack enable && pnpm install --frozen-lockfile
 
-FROM base AS build
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-RUN corepack enable && pnpm --filter @hypersync/shared build
-RUN corepack enable && pnpm --filter @hypersync/server build
+COPY packages/shared/ ./packages/shared/
+COPY packages/config/ ./packages/config/
+COPY apps/server/ ./apps/server/
+RUN pnpm --filter @hypersync/shared build && pnpm --filter @hypersync/server build
 
 FROM node:22-alpine AS runtime
 RUN apk add --no-cache tini
-WORKDIR /app
 RUN addgroup -g 1001 -S app && adduser -S app -u 1001 -G app
+WORKDIR /app
 
 COPY --from=build /app/packages/shared/dist ./packages/shared/dist
 COPY --from=build /app/packages/shared/package.json ./packages/shared/

@@ -1,6 +1,5 @@
 .git
 .github
-apps/web
 infra/certs
 infra/nginx.conf
 infra/nginx.prod.conf

@@ -1,17 +1,16 @@
-FROM node:22-alpine AS base
+FROM node:22-alpine AS build
 WORKDIR /app
 
-FROM base AS deps
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/shared/package.json ./packages/shared/
+COPY packages/config/package.json ./packages/config/
+COPY apps/web/package.json ./apps/web/
 RUN corepack enable && pnpm install --frozen-lockfile
 
-FROM base AS build
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
-COPY . .
-RUN corepack enable && pnpm --filter @hypersync/shared build
-RUN corepack enable && pnpm --filter @hypersync/web build
+COPY packages/shared/ ./packages/shared/
+COPY packages/config/ ./packages/config/
+COPY apps/web/ ./apps/web/
+RUN pnpm --filter @hypersync/shared build && pnpm --filter @hypersync/web build
 
 FROM nginx:alpine AS runtime
 COPY --from=build /app/apps/web/dist /usr/share/nginx/html

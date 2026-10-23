@@ -7,6 +7,7 @@ import type { CRDTDocManager } from "../crdt/doc-manager.js";
 import type { AwarenessHandler } from "../crdt/awareness-handler.js";
 import type { VideoSyncManager } from "../media/video-sync.js";
 import type { RedisPubSub } from "../scaling/redis-pubsub.js";
+import type { WebRTCSignaling } from "../webrtc/signaling.js";
 
 const log = createChildLogger("message-router");
 
@@ -21,7 +22,8 @@ export class MessageRouter {
     private docManager: CRDTDocManager,
     private awarenessHandler: AwarenessHandler,
     private videoSync: VideoSyncManager,
-    private redisPubSub?: RedisPubSub
+    private redisPubSub?: RedisPubSub,
+    private webrtcSignaling?: WebRTCSignaling
   ) {
     this.registerHandlers();
     this.setupPubSub();
@@ -53,6 +55,12 @@ export class MessageRouter {
 
     this.handlers.set(MessageType.VIDEO_SYNC, (conn, payload) => {
       this.videoSync.handle(conn, payload);
+    });
+
+    this.handlers.set(MessageType.WEBRTC_SIGNAL, (conn, payload) => {
+      if (this.webrtcSignaling) {
+        this.webrtcSignaling.handle(conn, payload);
+      }
     });
 
     this.handlers.set(MessageType.ROOM_MGMT, (conn, payload) => {
@@ -117,10 +125,14 @@ export class MessageRouter {
     }
   }
 
+  joinRoom(conn: Connection, roomId: string) {
+    this.roomManager.joinRoom(conn, roomId);
+  }
+
   route(conn: Connection, data: Uint8Array) {
     const envelope = decodeEnvelope(data);
     if (!envelope) {
-      log.warn({ connectionId: conn.id }, "Invalid message envelope");
+      log.warn({ connectionId: conn.id }, "Invalid envelope");
       return;
     }
 
@@ -128,7 +140,7 @@ export class MessageRouter {
     if (handler) {
       handler(conn, envelope.payload);
     } else {
-      log.warn({ type: envelope.type }, "Unknown message type");
+      log.warn({ connectionId: conn.id, type: envelope.type }, "Unhandled message type");
     }
   }
 }

@@ -15,3 +15,6 @@ coverage
 infra/certs
 *.pem
 *.key
+
+apps/server-go/server-go
+*.exe

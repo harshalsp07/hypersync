@@ -51,6 +51,19 @@ services:
       - ./apps/server:/app
       - /app/node_modules
 
+  server-go:
+    build:
+      context: apps/server-go
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3000"
+    environment:
+      PORT: 3000
+      HOST: "0.0.0.0"
+      CORS_ORIGIN: "*"
+    profiles:
+      - go
+
   web:
     build:
       context: .

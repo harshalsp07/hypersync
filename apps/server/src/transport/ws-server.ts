@@ -61,6 +61,7 @@ export class WSServer {
         const fullUrl = ws.upgradeReq?.url || "/";
         const url = new URL(fullUrl, "http://localhost");
         const token = url.searchParams.get("token");
+        const room = url.searchParams.get("room");
 
         if (!token) {
           ws.close(1008, "Token required");
@@ -78,7 +79,7 @@ export class WSServer {
         this.connections.set(connectionId, conn);
 
         log.info(
-          { connectionId, userId: payload.userId, username: payload.username },
+          { connectionId, userId: payload.userId, username: payload.username, room },
           "Client connected"
         );
 
@@ -88,6 +89,10 @@ export class WSServer {
 
         ws.userId = payload.userId;
         ws.connectionId = connectionId;
+
+        if (room) {
+          this.router.joinRoom(conn, room);
+        }
       },
 
       message: (ws: any, message: ArrayBuffer, isBinary: boolean) => {
@@ -118,21 +123,15 @@ export class WSServer {
       if (listenSocket) {
         log.info({ port, host, cors: this.corsOrigin }, "WebSocket server listening");
       } else {
-        log.error("Failed to start WebSocket server");
+        log.error({ port, host }, "Failed to start WebSocket server");
         process.exit(1);
       }
     });
-
-    return app;
-  }
-
-  getConnectionCount(): number {
-    return this.connections.size;
   }
 
   shutdown() {
     for (const [id, conn] of this.connections) {
-      conn.close(1001, "Server shutting down");
+      conn.ws.close(1001, "Server shutting down");
     }
     this.connections.clear();
   }

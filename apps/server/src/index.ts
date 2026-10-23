@@ -5,6 +5,7 @@ import { RoomManager } from "./rooms/room-manager.js";
 import { CRDTDocManager } from "./crdt/doc-manager.js";
 import { AwarenessHandler } from "./crdt/awareness-handler.js";
 import { VideoSyncManager } from "./media/video-sync.js";
+import { WebRTCSignaling } from "./webrtc/signaling.js";
 import { HeartbeatManager } from "./middleware/heartbeat.js";
 import { RedisWAL } from "./persistence/redis-wal.js";
 import { PGStore } from "./persistence/pg-store.js";
@@ -29,13 +30,15 @@ async function main() {
   const docManager = new CRDTDocManager(roomManager, redisWAL, compaction);
   const awarenessHandler = new AwarenessHandler(roomManager);
   const videoSync = new VideoSyncManager(roomManager);
+  const webrtcSignaling = new WebRTCSignaling(roomManager);
 
   const messageRouter = new MessageRouter(
     roomManager,
     docManager,
     awarenessHandler,
     videoSync,
-    redisPubSub
+    redisPubSub,
+    webrtcSignaling
   );
   const wsServer = new WSServer(messageRouter, env.CORS_ORIGIN);
 
